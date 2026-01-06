@@ -3,7 +3,7 @@ import argparse
 parser = argparse.ArgumentParser()
 
 # ---------------------------File--------------------------- #
-parser.add_argument('--data_path',          default='../data')
+parser.add_argument('--data_path',          default='./data')
 parser.add_argument('--mobility_adj',       default='/mobility_adj.npy')
 parser.add_argument('--poi_similarity',     default='/poi_similarity.npy')
 parser.add_argument('--source_adj',         default='/source_adj.npy')
