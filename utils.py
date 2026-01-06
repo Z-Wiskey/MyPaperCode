@@ -7,6 +7,10 @@ import scipy.sparse as sp
 
 def load_data():
     data_path = args.data_path
+
+    # 加载视觉嵌入
+    vis_emb = np.load(data_path + args.vis_embedding, allow_pickle=True)
+
     mobility_adj = np.load(data_path + args.mobility_adj, allow_pickle=True)
     mobility_adj = mobility_adj.squeeze()
     mobility = mobility_adj.copy()
@@ -23,7 +27,7 @@ def load_data():
 
     neighbor = np.load(data_path + args.neighbor, allow_pickle=True)
 
-    return poi_similarity, s_adj, d_adj, mobility, neighbor
+    return vis_emb, poi_similarity, s_adj, d_adj, mobility, neighbor
 
 
 def graph_to_COO(similarity, importance_k):

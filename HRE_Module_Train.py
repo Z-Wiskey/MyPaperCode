@@ -15,7 +15,7 @@ torch.manual_seed(seed=seed)
 np.random.seed(seed)
 random.seed(seed)
 
-poi_similarity, s_adj, d_adj, mobility, neighbor = utils.load_data()
+vis_emb, poi_similarity, s_adj, d_adj, mobility, neighbor = utils.load_data()
 poi_edge_index = utils.create_graph(poi_similarity, args.importance_k)
 s_edge_index = utils.create_graph(s_adj, args.importance_k)
 d_edge_index = utils.create_graph(d_adj, args.importance_k)
@@ -30,7 +30,19 @@ mobility = torch.tensor(mobility, dtype=torch.float32).to(args.device)
 poi_similarity = torch.tensor(
     poi_similarity, dtype=torch.float32).to(args.device)
 
-features = torch.randn(args.regions_num, args.embedding_size).to(args.device)
+# 视觉语义注入图结构节点信息
+features = torch.from_numpy(vis_emb).to(args.device)
+# 方案A: Z-score 标准化 (推荐)
+features = (features - features.mean(0)) / (features.std(0) + 1e-6)
+# 方案B: L2 正则化 (将模长缩放为1)
+features = F.normalize(features, p=2, dim=1)
+features.requires_grad = True  # 关键：允许求导
+
+# features = torch.randn(args.regions_num, args.embedding_size).to(args.device)
+# poi_r = torch.from_numpy(vis_emb).to(args.device)
+# s_r = torch.from_numpy(vis_emb).to(args.device)
+# d_r = torch.from_numpy(vis_emb).to(args.device)
+# n_r = torch.from_numpy(vis_emb).to(args.device)
 poi_r = torch.randn(args.embedding_size).to(args.device)
 s_r = torch.randn(args.embedding_size).to(args.device)
 d_r = torch.randn(args.embedding_size).to(args.device)
@@ -48,10 +60,28 @@ def mob_loss(s_emb, d_emb, mob):
                      torch.mul(mob, torch.log(pd_hat)))
     return loss
 
+# def mob_loss(s_emb, d_emb, mob):
+#     # 第一部分：Source -> Destination
+#     inner_prod_s = torch.mm(s_emb, d_emb.T)
+#     # 使用 log_softmax 直接获得 log(probability)，数值更稳定
+#     log_ps_hat = F.log_softmax(inner_prod_s, dim=-1)
+#
+#     # 第二部分：Destination -> Source
+#     inner_prod_d = torch.mm(d_emb, s_emb.T)
+#     log_pd_hat = F.log_softmax(inner_prod_d, dim=-1)
+#
+#     # 计算 Loss
+#     loss = torch.sum(-torch.mul(mob, log_ps_hat) -
+#                      torch.mul(mob, log_pd_hat))
+#     return loss
+
 
 def train(net):
     optimizer = optim.Adam(
-        net.parameters(), lr=args.learning_rate, weight_decay=5e-3)
+        [
+            {'params': net.parameters()},
+            {'params': features, 'lr': 1e-3}  # 可以给特征不同的学习率
+        ], lr=args.learning_rate, weight_decay=5e-3)
     loss_fn1 = torch.nn.TripletMarginLoss()
     loss_fn2 = torch.nn.MSELoss()
 

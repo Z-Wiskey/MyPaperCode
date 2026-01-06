@@ -4,6 +4,7 @@ parser = argparse.ArgumentParser()
 
 # ---------------------------File--------------------------- #
 parser.add_argument('--data_path',          default='./data')
+parser.add_argument('--vis_embedding',      default='/vis_embedding.npy')
 parser.add_argument('--mobility_adj',       default='/mobility_adj.npy')
 parser.add_argument('--poi_similarity',     default='/poi_similarity.npy')
 parser.add_argument('--source_adj',         default='/source_adj.npy')
@@ -17,10 +18,10 @@ parser.add_argument('--neighbor',           default='/neighbor.npy')
 # ---------------------------Model--------------------------- #
 parser.add_argument('--device',                      default='cuda')
 parser.add_argument('--embedding_size', type=int,    default=144)
-parser.add_argument('--learning_rate',  type=float,  default=0.001)
-parser.add_argument('--epochs',         type=int,    default=2000)
-parser.add_argument('--dropout',        type=float,  default=0.1)
-parser.add_argument('--gcn_layers',     type=int,    default=3)
+parser.add_argument('--learning_rate',  type=float,  default=0.0002)
+parser.add_argument('--epochs',         type=int,    default=2500)
+parser.add_argument('--dropout',        type=float,  default=0.05)
+parser.add_argument('--gcn_layers',     type=int,    default=4)
 parser.add_argument('--regions_num',    type=int,    default=180)
 parser.add_argument('--importance_k',   type=int,    default=10)
 
