@@ -2,18 +2,91 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch_geometric.nn import GCNConv
+from torch_geometric.nn import GATConv
 
 
-class RelationGCN(nn.Module):
+# class RelationGCN(nn.Module):
+#     def __init__(self, embedding_size, dropout, gcn_layers):
+#         super(RelationGCN, self).__init__()
+#         self.gcn_layers = gcn_layers
+#         self.dropout = dropout
+#
+#         self.gcns = nn.ModuleList([GCNConv(in_channels=embedding_size, out_channels=embedding_size)
+#                                    for _ in range(self.gcn_layers)])
+#         self.bns = nn.ModuleList([nn.BatchNorm1d(embedding_size)
+#                                  for _ in range(self.gcn_layers - 1)])
+#         self.relation_transformation = nn.ModuleList([nn.Linear(embedding_size, embedding_size)
+#                                                       for _ in range(self.gcn_layers)])
+#
+#     def forward(self, features, rel_emb, edge_index, is_training=True):
+#         n_emb = features
+#         poi_emb = features
+#         s_emb = features
+#         d_emb = features
+#         poi_r, s_r, d_r, n_r = rel_emb
+#         poi_edge_index, s_edge_index, d_edge_index, n_edge_index = edge_index
+#         for i in range(self.gcn_layers - 1):
+#             tmp = n_emb
+#             n_emb = tmp + F.leaky_relu(self.bns[i](
+#                 self.gcns[i](torch.multiply(n_emb, n_r), n_edge_index)))
+#             n_r = self.relation_transformation[i](n_r)
+#             if is_training:
+#                 n_emb = F.dropout(n_emb, p=self.dropout)
+#
+#             tmp = poi_emb
+#             poi_emb = tmp + F.leaky_relu(self.bns[i](
+#                 self.gcns[i](torch.multiply(poi_emb, poi_r), poi_edge_index)))
+#             poi_r = self.relation_transformation[i](poi_r)
+#             if is_training:
+#                 poi_emb = F.dropout(poi_emb, p=self.dropout)
+#
+#             tmp = s_emb
+#             s_emb = tmp + F.leaky_relu(self.bns[i](
+#                 self.gcns[i](torch.multiply(s_emb, s_r), s_edge_index)))
+#             s_r = self.relation_transformation[i](s_r)
+#             if is_training:
+#                 s_emb = F.dropout(s_emb, p=self.dropout)
+#
+#             tmp = d_emb
+#             d_emb = tmp + F.leaky_relu(self.bns[i](
+#                 self.gcns[i](torch.multiply(d_emb, d_r), d_edge_index)))
+#             d_r = self.relation_transformation[i](d_r)
+#             if is_training:
+#                 d_emb = F.dropout(d_emb, p=self.dropout)
+#
+#         n_emb = self.gcns[-1](torch.multiply(n_emb, n_r), n_edge_index)
+#         poi_emb = self.gcns[-1](torch.multiply(poi_emb, poi_r), poi_edge_index)
+#         s_emb = self.gcns[-1](torch.multiply(s_emb, s_r), s_edge_index)
+#         d_emb = self.gcns[-1](torch.multiply(d_emb, d_r), d_edge_index)
+#
+#         # rel update
+#         n_r = self.relation_transformation[-1](n_r)
+#         poi_r = self.relation_transformation[-1](poi_r)
+#         s_r = self.relation_transformation[-1](s_r)
+#         d_r = self.relation_transformation[-1](d_r)
+#
+#         return n_emb, poi_emb, s_emb, d_emb, n_r, poi_r, s_r, d_r
+
+class RelationGAT(nn.Module):
     def __init__(self, embedding_size, dropout, gcn_layers):
-        super(RelationGCN, self).__init__()
+        super(RelationGAT, self).__init__()
         self.gcn_layers = gcn_layers
         self.dropout = dropout
 
-        self.gcns = nn.ModuleList([GCNConv(in_channels=embedding_size, out_channels=embedding_size)
-                                   for _ in range(self.gcn_layers)])
+        # [修改点2] 将 GCNConv 替换为 GATConv
+        # 参考 FlexiReg 代码，GATConv 能够处理注意力权重
+        # heads=1 保证输出维度仍为 embedding_size，与后续模块兼容
+        self.gats = nn.ModuleList([
+            GATConv(in_channels=embedding_size,
+                    out_channels=embedding_size,
+                    heads=1,
+                    dropout=dropout)  # GAT内部也有dropout机制，对应论文公式
+            for _ in range(self.gcn_layers)
+        ])
+
         self.bns = nn.ModuleList([nn.BatchNorm1d(embedding_size)
-                                 for _ in range(self.gcn_layers - 1)])
+                                  for _ in range(self.gcn_layers - 1)])
+
         self.relation_transformation = nn.ModuleList([nn.Linear(embedding_size, embedding_size)
                                                       for _ in range(self.gcn_layers)])
 
@@ -24,39 +97,52 @@ class RelationGCN(nn.Module):
         d_emb = features
         poi_r, s_r, d_r, n_r = rel_emb
         poi_edge_index, s_edge_index, d_edge_index, n_edge_index = edge_index
+
         for i in range(self.gcn_layers - 1):
+            # ----------------- Neighbor Relation -----------------
             tmp = n_emb
-            n_emb = tmp + F.leaky_relu(self.bns[i](
-                self.gcns[i](torch.multiply(n_emb, n_r), n_edge_index)))
+            # [修改点3] 调用 self.gats[i]
+            # 论文公式 (63-69): GAT 自动计算注意力系数 alpha_ij 并聚合
+            n_emb_out = self.gats[i](torch.multiply(n_emb, n_r), n_edge_index)
+            n_emb = tmp + F.leaky_relu(self.bns[i](n_emb_out))
+
             n_r = self.relation_transformation[i](n_r)
             if is_training:
                 n_emb = F.dropout(n_emb, p=self.dropout)
 
+            # ----------------- POI Relation -----------------
             tmp = poi_emb
-            poi_emb = tmp + F.leaky_relu(self.bns[i](
-                self.gcns[i](torch.multiply(poi_emb, poi_r), poi_edge_index)))
+            poi_emb_out = self.gats[i](torch.multiply(poi_emb, poi_r), poi_edge_index)
+            poi_emb = tmp + F.leaky_relu(self.bns[i](poi_emb_out))
+
             poi_r = self.relation_transformation[i](poi_r)
             if is_training:
                 poi_emb = F.dropout(poi_emb, p=self.dropout)
 
+            # ----------------- Source Relation -----------------
             tmp = s_emb
-            s_emb = tmp + F.leaky_relu(self.bns[i](
-                self.gcns[i](torch.multiply(s_emb, s_r), s_edge_index)))
+            s_emb_out = self.gats[i](torch.multiply(s_emb, s_r), s_edge_index)
+            s_emb = tmp + F.leaky_relu(self.bns[i](s_emb_out))
+
             s_r = self.relation_transformation[i](s_r)
             if is_training:
                 s_emb = F.dropout(s_emb, p=self.dropout)
 
+            # ----------------- Destination Relation -----------------
             tmp = d_emb
-            d_emb = tmp + F.leaky_relu(self.bns[i](
-                self.gcns[i](torch.multiply(d_emb, d_r), d_edge_index)))
+            d_emb_out = self.gats[i](torch.multiply(d_emb, d_r), d_edge_index)
+            d_emb = tmp + F.leaky_relu(self.bns[i](d_emb_out))
+
             d_r = self.relation_transformation[i](d_r)
             if is_training:
                 d_emb = F.dropout(d_emb, p=self.dropout)
 
-        n_emb = self.gcns[-1](torch.multiply(n_emb, n_r), n_edge_index)
-        poi_emb = self.gcns[-1](torch.multiply(poi_emb, poi_r), poi_edge_index)
-        s_emb = self.gcns[-1](torch.multiply(s_emb, s_r), s_edge_index)
-        d_emb = self.gcns[-1](torch.multiply(d_emb, d_r), d_edge_index)
+        # ----------------- Final Layer -----------------
+        # 最后一层通常不需要 BatchNorm 和残差 (视具体网络设计而定，保持与原代码逻辑一致)
+        n_emb = self.gats[-1](torch.multiply(n_emb, n_r), n_edge_index)
+        poi_emb = self.gats[-1](torch.multiply(poi_emb, poi_r), poi_edge_index)
+        s_emb = self.gats[-1](torch.multiply(s_emb, s_r), s_edge_index)
+        d_emb = self.gats[-1](torch.multiply(d_emb, d_r), d_edge_index)
 
         # rel update
         n_r = self.relation_transformation[-1](n_r)
@@ -65,7 +151,6 @@ class RelationGCN(nn.Module):
         d_r = self.relation_transformation[-1](d_r)
 
         return n_emb, poi_emb, s_emb, d_emb, n_r, poi_r, s_r, d_r
-
 
 class CrossLayer(nn.Module):
     def __init__(self, embedding_size):
@@ -117,7 +202,8 @@ class HRE(nn.Module):
     def __init__(self, embedding_size, dropout, gcn_layers):
         super(HRE, self).__init__()
 
-        self.relation_gcns = RelationGCN(embedding_size, dropout, gcn_layers)
+        # self.relation_gcns = RelationGCN(embedding_size, dropout, gcn_layers)
+        self.relation_gcns = RelationGAT(embedding_size, dropout, gcn_layers)
 
         self.cross_layer = CrossLayer(embedding_size)
 
