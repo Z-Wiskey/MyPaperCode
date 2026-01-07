@@ -15,6 +15,8 @@ torch.manual_seed(seed=seed)
 np.random.seed(seed)
 random.seed(seed)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print('device:', device)
 vis_emb, poi_similarity, s_adj, d_adj, mobility, neighbor = utils.load_data()
 poi_edge_index = utils.create_graph(poi_similarity, args.importance_k)
 s_edge_index = utils.create_graph(s_adj, args.importance_k)
