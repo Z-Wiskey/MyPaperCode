@@ -94,7 +94,7 @@ def train(net):
 
     for epoch in range(args.epochs):
         optimizer.zero_grad()
-        region_emb, n_emb, poi_emb, s_emb, d_emb = net(
+        region_emb, n_emb, poi_emb, s_emb, d_emb, loss_cross = net(
             features, rel_emb, edge_index)
 
         pos_idx, neg_idx = utils.pair_sample(neighbor)
@@ -104,12 +104,21 @@ def train(net):
         m_loss = mob_loss(s_emb, d_emb, mobility)
 
         poi_loss = loss_fn2(torch.mm(poi_emb, poi_emb.T), poi_similarity)
-        loss = poi_loss + m_loss + geo_loss
+
+        # 动态调整 lambda_cross
+        if epoch < 20:
+            lambda_cross = 0.0  # 前20轮不加跨模态约束，先让结构部分“热身”
+        else:
+            lambda_cross = 0.05  # 之后再加入，且权重保持较小
+
+        loss = 0.5 * poi_loss + m_loss + 0.5 * geo_loss + (lambda_cross * loss_cross)
+
         loss.backward()
         optimizer.step()
 
         with torch.no_grad():
             mae, rmse, r2 = predict_crime(region_emb.detach().cpu().numpy())
+            # mae, rmse, r2 = predict_check(region_emb.detach().cpu().numpy())
             # nmi, ari = clustering(region_emb.detach().cpu().numpy())
             # print(nmi, ari)
             if rmse < best_rmse and mae < best_mae and best_r2 < r2:
@@ -127,7 +136,7 @@ def train(net):
 
 
 def test(net):
-    region_emb, _, _, _, _ = net(features, rel_emb, edge_index, False)
+    region_emb, _, _, _, _, _ = net(features, rel_emb, edge_index, False)
     print('>>>>>>>>>>>>>>>>>   crime')
     mae, rmse, r2 = predict_crime(region_emb.detach().cpu().numpy())
     print("MAE:  %.3f" % mae)
