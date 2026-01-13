@@ -109,9 +109,9 @@ def train(net):
         if epoch < 20:
             lambda_cross = 0.0  # 前20轮不加跨模态约束，先让结构部分“热身”
         else:
-            lambda_cross = 0.05  # 之后再加入，且权重保持较小
+            lambda_cross = 0.5  # 之后再加入，且权重保持较小
 
-        loss = 0.5 * poi_loss + m_loss + 0.5 * geo_loss + (lambda_cross * loss_cross)
+        loss = poi_loss + m_loss + geo_loss + (lambda_cross * loss_cross)
 
         loss.backward()
         optimizer.step()
