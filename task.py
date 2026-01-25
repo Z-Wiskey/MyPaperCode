@@ -1,5 +1,5 @@
 from parse_args import args
-
+from sklearn.preprocessing import normalize  # 引入 normalize
 import json
 import numpy as np
 from sklearn.cluster import KMeans
@@ -64,8 +64,19 @@ def predict_check(emb):
 
 def classify(emb, rand):
     n = 12
+
+    # === 修改点开始 ===
+    # 在聚类前，先对 Embedding 进行 L2 归一化
+    # 这会消除“流量约束”带来的模长差异，只保留语义方向
+    emb_norm = normalize(emb, norm='l2', axis=1)
+
     kmeans = KMeans(n_clusters=n, random_state=rand)
-    emb_labels = kmeans.fit_predict(emb)
+    # 使用归一化后的 embedding 进行聚类
+    emb_labels = kmeans.fit_predict(emb_norm)
+    # === 修改点结束 ===
+
+    # kmeans = KMeans(n_clusters=n, random_state=rand)
+    # emb_labels = kmeans.fit_predict(emb)
     nmi = normalized_mutual_info_score(mh_cd_labels, emb_labels)
     ari = adjusted_rand_score(mh_cd_labels, emb_labels)
     return nmi, ari

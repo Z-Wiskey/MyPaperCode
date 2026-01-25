@@ -79,11 +79,26 @@ def mob_loss(s_emb, d_emb, mob):
 
 
 def train(net):
+    # 1. 在循环外预计算每个区域的总流量 (作为 Ground Truth)
+    # mobility 是 (N, N) 的矩阵，sum(dim=1) 得到每个区域的总流出量
+    # 取 log 是为了平滑长尾分布，防止数值过大
+    region_volume = torch.sum(mobility, dim=1)
+    region_volume_log = torch.log(region_volume + 1e-6).detach()  # 加上 epsilon 防止 log(0)
+
+    # 简单定义一个线性层用于预测流量 (可以放在 HRE 模型里，也可以在这里临时定义)
+    # 为了方便，建议直接在 HRE_Module.py 里加，或者在这里用 embedding 的模长来约束
+    # 方案 A: 约束 Embedding 的模长 (Norm) 与流量正相关
+    # 方案 B: 加一个小的预测头 (推荐，更灵活)
+    volume_predictor = torch.nn.Linear(args.embedding_size, 1).to(args.device)
+
     optimizer = optim.Adam(
         [
             {'params': net.parameters()},
-            {'params': features, 'lr': 1e-3}  # 可以给特征不同的学习率
+            {'params': features, 'lr': 1e-3},
+            {'params': volume_predictor.parameters(), 'lr': 1e-3}  # 新增
         ], lr=args.learning_rate, weight_decay=5e-3)
+
+    loss_fn_mse = torch.nn.MSELoss()  # 用于回归流量
     loss_fn1 = torch.nn.TripletMarginLoss()
     loss_fn2 = torch.nn.MSELoss()
 
@@ -105,13 +120,20 @@ def train(net):
 
         poi_loss = loss_fn2(torch.mm(poi_emb, poi_emb.T), poi_similarity)
 
-        # 动态调整 lambda_cross
-        if epoch < 20:
-            lambda_cross = 0.0  # 前20轮不加跨模态约束，先让结构部分“热身”
-        else:
-            lambda_cross = 0.5  # 之后再加入，且权重保持较小
+        # === 新增代码开始 ===
+        # 预测该区域的流量等级
+        pred_volume = volume_predictor(region_emb).squeeze()
 
-        loss = poi_loss + m_loss + geo_loss + (lambda_cross * loss_cross)
+        # 计算流量损失 (Volume Loss)
+        # 这迫使 Embedding 包含能够线性映射回“总流量”的信息
+        l_volume = loss_fn_mse(pred_volume, region_volume_log)
+        # === 新增代码结束 ===
+
+        # 动态调整 lambda_cross
+
+        lambda_cross = 0.5  # 之后再加入，且权重保持较小
+
+        loss = poi_loss + m_loss + geo_loss + (lambda_cross * loss_cross) + 0.5 * l_volume
 
         loss.backward()
         optimizer.step()

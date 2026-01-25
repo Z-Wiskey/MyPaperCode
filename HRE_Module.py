@@ -241,8 +241,8 @@ class CrossModalFusion(nn.Module):
         self.norm = nn.LayerNorm(embedding_size)
 
     def contrastive_loss(self, z_v, z_s):
-        z_v = F.normalize(z_v, dim=1)
-        z_s = F.normalize(z_s, dim=1)
+        # z_v = F.normalize(z_v, dim=1)
+        # z_s = F.normalize(z_s, dim=1)
 
         # 计算相似度
         sim_matrix = torch.mm(z_s, z_v.T) / self.temperature
