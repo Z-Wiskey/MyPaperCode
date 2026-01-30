@@ -129,11 +129,13 @@ def train(net):
         l_volume = loss_fn_mse(pred_volume, region_volume_log)
         # === 新增代码结束 ===
 
+        l_str = poi_loss + m_loss + geo_loss + 0.5 * l_volume
+
         # 动态调整 lambda_cross
 
-        lambda_cross = 0.5  # 之后再加入，且权重保持较小
+        lambda_cross = 1  # 之后再加入，且权重保持较小
 
-        loss = poi_loss + m_loss + geo_loss + (lambda_cross * loss_cross) + 0.5 * l_volume
+        loss = l_str + loss_cross * lambda_cross
 
         loss.backward()
         optimizer.step()
