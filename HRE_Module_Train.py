@@ -30,7 +30,7 @@ DEVICE = resolve_device()
 
 
 def prepare_training_inputs():
-    vis_emb, poi_similarity, s_adj, d_adj, mobility, neighbor = utils.load_data()
+    vis_emb, poi_similarity, landuse_similarity, s_adj, d_adj, mobility = utils.load_data()
 
     poi_edge_index = torch.tensor(
         utils.create_graph(poi_similarity, args.importance_k), dtype=torch.long, device=DEVICE
@@ -41,10 +41,13 @@ def prepare_training_inputs():
     d_edge_index = torch.tensor(
         utils.create_graph(d_adj, args.importance_k), dtype=torch.long, device=DEVICE
     )
-    n_edge_index = torch.tensor(utils.create_neighbor_graph(neighbor), dtype=torch.long, device=DEVICE)
+    n_edge_index = torch.tensor(
+        utils.create_graph(landuse_similarity, args.importance_k), dtype=torch.long, device=DEVICE
+    )
 
     mobility_tensor = torch.tensor(mobility, dtype=torch.float32, device=DEVICE)
     poi_similarity_tensor = torch.tensor(poi_similarity, dtype=torch.float32, device=DEVICE)
+    landuse_similarity_tensor = torch.tensor(landuse_similarity, dtype=torch.float32, device=DEVICE)
 
     features = torch.tensor(vis_emb, dtype=torch.float32, device=DEVICE)
     features = (features - features.mean(dim=0)) / (features.std(dim=0) + 1e-6)
@@ -53,7 +56,7 @@ def prepare_training_inputs():
 
     rel_emb = [torch.randn(args.embedding_size, device=DEVICE) for _ in range(4)]
     edge_index = [poi_edge_index, s_edge_index, d_edge_index, n_edge_index]
-    return features, rel_emb, edge_index, mobility_tensor, poi_similarity_tensor, neighbor
+    return features, rel_emb, edge_index, mobility_tensor, poi_similarity_tensor, landuse_similarity_tensor
 
 
 def mob_loss(s_emb, d_emb, mob):
@@ -64,12 +67,13 @@ def mob_loss(s_emb, d_emb, mob):
     return torch.sum(-torch.mul(mob, torch.log(ps_hat)) - torch.mul(mob, torch.log(pd_hat)))
 
 
+def general_loss(embeddings, similarity):
+    inner_prod = F.cosine_similarity(embeddings.unsqueeze(1), embeddings.unsqueeze(0), dim=2)
+    return F.mse_loss(inner_prod, similarity)
+
+
 def evaluate_task(embs, task_name, display=False):
     result = run_task(args.task_package, task_name, embs, args.data_path, display=display)
-    if task_name == "clustering":
-        nmi, ari = result
-        return {"task": task_name, "nmi": float(nmi), "ari": float(ari), "score": float(nmi)}
-
     mae, rmse, r2 = result
     return {"task": task_name, "mae": float(mae), "rmse": float(rmse), "r2": float(r2), "score": float(r2)}
 
@@ -80,9 +84,6 @@ def better_than(current_metrics, best_metrics):
 
     if current_metrics["score"] != best_metrics["score"]:
         return current_metrics["score"] > best_metrics["score"]
-
-    if current_metrics["task"] == "clustering":
-        return current_metrics["ari"] > best_metrics.get("ari", float("-inf"))
 
     return current_metrics["rmse"] < best_metrics.get("rmse", float("inf"))
 
@@ -95,22 +96,25 @@ def save_best_outputs(embs, metrics):
         json.dump(metrics, file_obj, indent=2)
 
 
+def print_best_checkpoint(metrics):
+    print("best checkpoint----------")
+    print(f"selection_task: {metrics['task']}")
+    print(f"epoch:          {metrics['epoch']}")
+    print(f"MAE:            {metrics['mae']:.3f}")
+    print(f"RMSE:           {metrics['rmse']:.3f}")
+    print(f"R2:             {metrics['r2']:.3f}")
+    print(f"train_loss:     {metrics['train_loss']:.6f}")
+
+
 def log_eval(epoch, loss_value, metrics):
     display_epoch = epoch + 1
-    if metrics["task"] == "clustering":
-        print(
-            f"epoch={display_epoch:04d} loss={loss_value:.6f} "
-            f"selection_task={metrics['task']} nmi={metrics['nmi']:.4f} ari={metrics['ari']:.4f}"
-        )
-        return
-
     print(
         f"epoch={display_epoch:04d} loss={loss_value:.6f} selection_task={metrics['task']} "
         f"rmse={metrics['rmse']:.4f} mae={metrics['mae']:.4f} r2={metrics['r2']:.4f}"
     )
 
 
-def train(net, features, rel_emb, edge_index, mobility, poi_similarity, neighbor):
+def train(net, features, rel_emb, edge_index, mobility, poi_similarity, landuse_similarity):
     region_volume = torch.sum(mobility, dim=1)
     region_volume_log = torch.log(region_volume + 1e-6).detach()
     volume_predictor = torch.nn.Linear(args.embedding_size, 1).to(DEVICE)
@@ -126,27 +130,22 @@ def train(net, features, rel_emb, edge_index, mobility, poi_similarity, neighbor
     )
 
     loss_fn_mse = torch.nn.MSELoss()
-    loss_fn_triplet = torch.nn.TripletMarginLoss()
     loss_fn_reconstruction = torch.nn.MSELoss()
 
     best_metrics = None
 
     for epoch in range(args.epochs):
         optimizer.zero_grad()
-        region_emb, n_emb, poi_emb, s_emb, d_emb, loss_cross = net(features, rel_emb, edge_index)
+        region_emb, landuse_emb, poi_emb, s_emb, d_emb, loss_cross = net(features, rel_emb, edge_index)
 
-        pos_idx, neg_idx = utils.pair_sample(neighbor)
-        pos_idx = pos_idx.to(DEVICE)
-        neg_idx = neg_idx.to(DEVICE)
-
-        geo_loss = loss_fn_triplet(n_emb, n_emb[pos_idx], n_emb[neg_idx])
         m_loss = mob_loss(s_emb, d_emb, mobility)
         poi_loss = loss_fn_reconstruction(torch.mm(poi_emb, poi_emb.T), poi_similarity)
+        landuse_loss = general_loss(landuse_emb, landuse_similarity)
 
         pred_volume = volume_predictor(region_emb).squeeze()
         volume_loss = loss_fn_mse(pred_volume, region_volume_log)
 
-        structural_loss = poi_loss + m_loss + geo_loss + args.volume_loss_weight * volume_loss
+        structural_loss = poi_loss + m_loss + landuse_loss + args.volume_loss_weight * volume_loss
         loss = structural_loss + loss_cross * args.cross_loss_weight
 
         loss.backward()
@@ -173,6 +172,7 @@ def test():
     best_emb = np.load(args.best_emb_path, allow_pickle=True)
 
     for task_name in expand_tasks(args.task):
+        print()
         print(f">>>>>>>>>>>>>>>>>   {task_name}")
         run_task(args.task_package, task_name, best_emb, args.data_path, display=True)
 
@@ -185,18 +185,17 @@ def main():
     print(f"data_path: {args.data_path}")
     print(f"save_folder: {args.save_folder}")
 
-    features, rel_emb, edge_index, mobility, poi_similarity, neighbor = prepare_training_inputs()
+    features, rel_emb, edge_index, mobility, poi_similarity, landuse_similarity = prepare_training_inputs()
     net = HRE(args.embedding_size, args.dropout, args.gcn_layers).to(DEVICE)
 
     print("training-----------------")
     net.train()
-    best_metrics = train(net, features, rel_emb, edge_index, mobility, poi_similarity, neighbor)
+    best_metrics = train(net, features, rel_emb, edge_index, mobility, poi_similarity, landuse_similarity)
 
     if best_metrics is None:
         raise RuntimeError("Training finished without producing evaluation metrics.")
 
-    print("best checkpoint----------")
-    print(json.dumps(best_metrics, indent=2))
+    print_best_checkpoint(best_metrics)
 
     print("downstream task test-----")
     test()

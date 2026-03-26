@@ -1,6 +1,7 @@
 # MyPaperCode
 
-This project is now organized in a HAFusion-style runtime layout while keeping the HRE model code unchanged.
+This project is organized in a HAFusion-style runtime layout while keeping the HRE model code unchanged.
+The New York experiment now uses HAFusion-style structural inputs: POI similarity, mobility adjacency, land-use similarity, and the original visual embedding.
 
 ## Structure
 
@@ -17,8 +18,8 @@ Train for a single downstream task:
 
 ```bash
 python main.py --city NewYork --task crime
-python main.py --city NewYork --task check
-python main.py --city NewYork --task clustering
+python main.py --city NewYork --task checkin
+python main.py --city NewYork --task servicecall
 ```
 
 Run all downstream tasks after training, while selecting the best checkpoint with a specific task:

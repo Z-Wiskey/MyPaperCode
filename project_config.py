@@ -7,23 +7,25 @@ DATASET_CONFIGS = {
     },
 }
 
-ALL_TASKS = ("crime", "check", "clustering")
+ALL_TASKS = ("crime", "checkin", "servicecall")
 
 TASK_MODULES = {
     "crime": "tasks_crime",
-    "check": "tasks_check",
-    "clustering": "tasks_clustering",
+    "checkin": "tasks_checkin",
+    "servicecall": "tasks_servicecall",
 }
 
 TASK_ALIASES = {
     "crime": "crime",
-    "check": "check",
-    "checkin": "check",
-    "check_in": "check",
-    "check-in": "check",
-    "chk": "check",
-    "clustering": "clustering",
-    "cluster": "clustering",
+    "check": "checkin",
+    "checkin": "checkin",
+    "check_in": "checkin",
+    "check-in": "checkin",
+    "chk": "checkin",
+    "servicecall": "servicecall",
+    "service_call": "servicecall",
+    "service-call": "servicecall",
+    "service": "servicecall",
     "all": "all",
 }
 

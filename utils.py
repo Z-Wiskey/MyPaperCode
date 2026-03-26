@@ -23,15 +23,13 @@ def load_data():
     poi_similarity = _load_npy(data_path, args.poi_similarity)
     poi_similarity[np.isnan(poi_similarity)] = 0
 
-    d_adj = _load_npy(data_path, args.destination_adj)
-    d_adj[np.isnan(d_adj)] = 0
+    landuse_similarity = _load_npy(data_path, args.landuse_similarity)
+    landuse_similarity[np.isnan(landuse_similarity)] = 0
 
-    s_adj = _load_npy(data_path, args.source_adj)
-    s_adj[np.isnan(s_adj)] = 0
+    s_adj = mobility_adj.copy()
+    d_adj = mobility_adj.T.copy()
 
-    neighbor = _load_npy(data_path, args.neighbor)
-
-    return vis_emb, poi_similarity, s_adj, d_adj, mobility, neighbor
+    return vis_emb, poi_similarity, landuse_similarity, s_adj, d_adj, mobility
 
 
 def graph_to_COO(similarity, importance_k):

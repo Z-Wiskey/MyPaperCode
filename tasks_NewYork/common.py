@@ -20,7 +20,7 @@ def regression(X_train, y_train, X_test, alpha):
     return reg.predict(np.array(X_test, dtype=float))
 
 
-def kf_predict(embs, labels, n_splits=5):
+def kf_predict(embs, labels, n_splits=10):
     kf = KFold(n_splits=n_splits)
     y_preds = []
     y_truths = []

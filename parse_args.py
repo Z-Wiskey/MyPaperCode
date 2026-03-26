@@ -21,7 +21,7 @@ def build_parser():
     parser.add_argument(
         "--task",
         default="crime",
-        help="Downstream task name: crime, check, clustering, or all.",
+        help="Downstream task name: crime, checkin, servicecall, or all.",
     )
     parser.add_argument(
         "--selection_task",
@@ -34,26 +34,24 @@ def build_parser():
 
     # ---------------------------File--------------------------- #
     parser.add_argument("--vis_embedding", default="vis_embedding.npy")
-    parser.add_argument("--mobility_adj", default="mobility_adj.npy")
-    parser.add_argument("--poi_similarity", default="poi_similarity.npy")
-    parser.add_argument("--source_adj", default="source_adj.npy")
-    parser.add_argument("--destination_adj", default="destination_adj.npy")
-    parser.add_argument("--mh_cd", default="mh_cd.json")
+    parser.add_argument("--mobility_adj", default="mob-adj.npy")
+    parser.add_argument("--poi_similarity", default="poi_simi.npy")
+    parser.add_argument("--landuse_similarity", default="landUse_simi.npy")
     parser.add_argument("--crime_counts", default="crime_counts.npy")
-    parser.add_argument("--check_counts", default="check_counts.npy")
-    parser.add_argument("--neighbor", default="neighbor.npy")
+    parser.add_argument("--checkin_counts", default="check_counts.npy")
+    parser.add_argument("--servicecall_counts", default="serviceCall_counts.npy")
 
     # ---------------------------Model--------------------------- #
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=2022)
     parser.add_argument("--embedding_size", type=int, default=144)
-    parser.add_argument("--learning_rate", type=float, default=0.0002)
+    parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--feature_learning_rate", type=float, default=0.001)
     parser.add_argument("--aux_learning_rate", type=float, default=0.001)
     parser.add_argument("--weight_decay", type=float, default=5e-3)
     parser.add_argument("--epochs", type=int, default=3000)
     parser.add_argument("--eval_interval", type=int, default=20)
-    parser.add_argument("--dropout", type=float, default=0.2)
+    parser.add_argument("--dropout", type=float, default=0.1)
     parser.add_argument("--gcn_layers", type=int, default=2)
     parser.add_argument("--regions_num", type=int, default=None)
     parser.add_argument("--importance_k", type=int, default=10)

@@ -10,12 +10,16 @@ def predict_crime(emb):
     return run_task(args.task_package, "crime", emb, args.data_path, display=False)
 
 
+def predict_checkin(emb):
+    return run_task(args.task_package, "checkin", emb, args.data_path, display=False)
+
+
 def predict_check(emb):
-    return run_task(args.task_package, "check", emb, args.data_path, display=False)
+    return predict_checkin(emb)
 
 
-def clustering(emb):
-    return run_task(args.task_package, "clustering", emb, args.data_path, display=False)
+def predict_servicecall(emb):
+    return run_task(args.task_package, "servicecall", emb, args.data_path, display=False)
 
 
 if __name__ == "__main__":
@@ -24,5 +28,5 @@ if __name__ == "__main__":
         emb_path = Path("emb.npy")
     emb = np.load(emb_path, allow_pickle=True)
     print("crime", predict_crime(emb))
-    print("check", predict_check(emb))
-    print("clustering", clustering(emb))
+    print("checkin", predict_checkin(emb))
+    print("servicecall", predict_servicecall(emb))
