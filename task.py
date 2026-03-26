@@ -1,103 +1,28 @@
-from parse_args import args
-from sklearn.preprocessing import normalize  # 引入 normalize
-import json
+from pathlib import Path
+
 import numpy as np
-from sklearn.cluster import KMeans
-from sklearn.model_selection import KFold
-from sklearn import linear_model
-from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
-from sklearn.metrics import normalized_mutual_info_score
-from sklearn.metrics import adjusted_rand_score
 
-crime_counts = np.load(args.data_path + args.crime_counts, allow_pickle=True)
-check_counts = np.load(args.data_path + args.check_counts, allow_pickle=True)
-
-with open(args.data_path + args.mh_cd, 'r') as f:
-    mh_cd = json.load(f)
-mh_cd_labels = np.zeros(180)
-for i in range(180):
-    mh_cd_labels[i] = mh_cd[str(i)]
-
-
-def regression(X_train, y_train, X_test, alpha):
-    reg = linear_model.Ridge(alpha=alpha)
-
-    reg.fit(X_train, y_train)
-
-    y_pred = reg.predict(X_test)
-    return y_pred
-
-
-def kf_predict(X, Y):
-    kf = KFold(n_splits=5)
-    y_preds = []
-    y_truths = []
-    for train_index, test_index in kf.split(X):
-        X_train, X_test = X[train_index], X[test_index]
-        y_train, y_test = Y[train_index], Y[test_index]
-        y_pred = regression(X_train, y_train, X_test, 1)
-        y_preds.append(y_pred)
-        y_truths.append(y_test)
-
-    return np.concatenate(y_preds), np.concatenate(y_truths)
-
-
-def compute_metrics(y_pred, y_test):
-    y_pred[y_pred < 0] = 0
-    mae = mean_absolute_error(y_test, y_pred)
-    mse = mean_squared_error(y_test, y_pred)
-    r2 = r2_score(y_test, y_pred)
-    return mae, np.sqrt(mse), r2
+from parse_args import args
+from task_registry import run_task
 
 
 def predict_crime(emb):
-    y_pred, y_test = kf_predict(emb, crime_counts)
-    mae, rmse, r2 = compute_metrics(y_pred, y_test)
-    return mae, rmse, r2
+    return run_task(args.task_package, "crime", emb, args.data_path, display=False)
 
 
 def predict_check(emb):
-    y_pred, y_test = kf_predict(emb, check_counts)
-    mae, rmse, r2 = compute_metrics(y_pred, y_test)
-    return mae, rmse, r2
-
-
-def classify(emb, rand):
-    n = 12
-
-    # === 修改点开始 ===
-    # 在聚类前，先对 Embedding 进行 L2 归一化
-    # 这会消除“流量约束”带来的模长差异，只保留语义方向
-    emb_norm = normalize(emb, norm='l2', axis=1)
-
-    kmeans = KMeans(n_clusters=n, random_state=rand)
-    # 使用归一化后的 embedding 进行聚类
-    emb_labels = kmeans.fit_predict(emb_norm)
-    # === 修改点结束 ===
-
-    # kmeans = KMeans(n_clusters=n, random_state=rand)
-    # emb_labels = kmeans.fit_predict(emb)
-    nmi = normalized_mutual_info_score(mh_cd_labels, emb_labels)
-    ari = adjusted_rand_score(mh_cd_labels, emb_labels)
-    return nmi, ari
+    return run_task(args.task_package, "check", emb, args.data_path, display=False)
 
 
 def clustering(emb):
-    nmi, ari = classify(emb, 3)  # 9
-    return nmi, ari
+    return run_task(args.task_package, "clustering", emb, args.data_path, display=False)
 
 
-if __name__ == '__main__':
-    emb = np.load('emb.npy', allow_pickle=True)
-    nmi, ari = clustering(emb)
-    print(nmi, ari)
-    mae, rmse, r2 = predict_crime(emb)
-    print("MAE:  %.3f" % mae)
-    print("RMSE: %.3f" % rmse)
-    print("R2:   %.3f" % r2)
-    print('>>>>>>>>>>>>>>>>>   check')
-    mae, rmse, r2 = predict_check(emb)
-    print("MAE:  %.3f" % mae)
-    print("RMSE: %.3f" % rmse)
-    print("R2:   %.3f" % r2)
-    print('>>>>>>>>>>>>>>>>>   clustering')
+if __name__ == "__main__":
+    emb_path = Path(args.best_emb_path)
+    if not emb_path.exists():
+        emb_path = Path("emb.npy")
+    emb = np.load(emb_path, allow_pickle=True)
+    print("crime", predict_crime(emb))
+    print("check", predict_check(emb))
+    print("clustering", clustering(emb))
