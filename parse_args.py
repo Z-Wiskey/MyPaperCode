@@ -16,7 +16,7 @@ def build_parser():
         "--dataset",
         dest="city",
         default="NewYork",
-        help="Dataset/city name. Aliases such as NY and NYC are also supported.",
+        help="Dataset/city name. Aliases such as NY, Chi, and SF are also supported.",
     )
     parser.add_argument(
         "--task",
@@ -57,6 +57,28 @@ def build_parser():
     parser.add_argument("--importance_k", type=int, default=10)
     parser.add_argument("--volume_loss_weight", type=float, default=0.5)
     parser.add_argument("--cross_loss_weight", type=float, default=1.0)
+    parser.add_argument(
+        "--selection_strategy",
+        choices=("single", "pareto", "baseline_pareto"),
+        default="single",
+        help="Checkpoint selection logic for multi-task runs.",
+    )
+    parser.add_argument(
+        "--reference_emb_path",
+        default=None,
+        help="Optional embedding file used as a reference checkpoint for baseline-relative selection.",
+    )
+    parser.add_argument(
+        "--fusion_mode",
+        choices=("attention", "dafusion"),
+        default="attention",
+        help="Structural feature fusion module.",
+    )
+    parser.add_argument("--dafusion_heads", type=int, default=4)
+    parser.add_argument("--dafusion_inter_blocks", type=int, default=3)
+    parser.add_argument("--dafusion_region_blocks", type=int, default=3)
+    parser.add_argument("--dafusion_inter_slot_dim", type=int, default=72)
+    parser.add_argument("--dafusion_view_hidden_dim", type=int, default=64)
 
     return parser
 
