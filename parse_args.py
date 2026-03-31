@@ -16,7 +16,7 @@ def build_parser():
         "--dataset",
         dest="city",
         default="NewYork",
-        help="Dataset/city name. Aliases such as NY and NYC are also supported.",
+        help="Dataset/city name. Supported cities include NewYork, Chicago, and SanFrancisco.",
     )
     parser.add_argument(
         "--task",
