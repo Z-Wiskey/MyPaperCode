@@ -16,7 +16,7 @@ def build_parser():
         "--dataset",
         dest="city",
         default="NewYork",
-        help="Dataset/city name. Supported cities include NewYork, Chicago, and SanFrancisco.",
+        help="Dataset/city name. Supported values include NewYork, Chicago, and SanFrancisco.",
     )
     parser.add_argument(
         "--task",
@@ -45,13 +45,13 @@ def build_parser():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--seed", type=int, default=2022)
     parser.add_argument("--embedding_size", type=int, default=144)
-    parser.add_argument("--learning_rate", type=float, default=0.001)
+    parser.add_argument("--learning_rate", type=float, default=0.0012)
     parser.add_argument("--feature_learning_rate", type=float, default=0.001)
     parser.add_argument("--aux_learning_rate", type=float, default=0.001)
-    parser.add_argument("--weight_decay", type=float, default=5e-3)
+    parser.add_argument("--weight_decay", type=float, default=1e-3)
     parser.add_argument("--epochs", type=int, default=3000)
     parser.add_argument("--eval_interval", type=int, default=20)
-    parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument("--dropout", type=float, default=0.05)
     parser.add_argument("--gcn_layers", type=int, default=2)
     parser.add_argument("--regions_num", type=int, default=None)
     parser.add_argument("--importance_k", type=int, default=10)

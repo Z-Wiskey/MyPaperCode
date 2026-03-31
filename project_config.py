@@ -2,19 +2,19 @@ DATASET_CONFIGS = {
     "NewYork": {
         "aliases": {"ny", "nyc", "newyork", "new_york"},
         "data_dir": "data_NewYork",
-        "task_package": "tasks_common",
+        "task_package": "tasks_NewYork",
         "regions_num": 180,
     },
     "Chicago": {
         "aliases": {"chi", "chicago"},
         "data_dir": "data_Chicago",
-        "task_package": "tasks_common",
+        "task_package": "tasks_NewYork",
         "regions_num": 77,
     },
     "SanFrancisco": {
         "aliases": {"sf", "sanfrancisco", "san_francisco", "san-francisco"},
         "data_dir": "data_SanFrancisco",
-        "task_package": "tasks_common",
+        "task_package": "tasks_NewYork",
         "regions_num": 175,
     },
 }

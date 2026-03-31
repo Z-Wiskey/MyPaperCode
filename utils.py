@@ -8,42 +8,13 @@ from parse_args import args
 
 
 def _load_npy(data_path, file_name):
-    data_dir = Path(data_path)
-    primary_path = data_dir / file_name
-    if primary_path.exists():
-        return np.load(primary_path, allow_pickle=True)
-
-    fallback_names = {
-        "mob-adj.npy": ("mobility_adj.npy",),
-        "mobility_adj.npy": ("mob-adj.npy",),
-        "poi_simi.npy": ("poi_similarity.npy",),
-        "poi_similarity.npy": ("poi_simi.npy",),
-    }
-    for fallback_name in fallback_names.get(file_name, ()):
-        fallback_path = data_dir / fallback_name
-        if fallback_path.exists():
-            return np.load(fallback_path, allow_pickle=True)
-
-    return np.load(primary_path, allow_pickle=True)
-
-
-def _load_or_init_vis_emb(data_path):
-    vis_path = Path(data_path) / args.vis_embedding
-    if vis_path.exists():
-        return np.load(vis_path, allow_pickle=True)
-
-    vis_emb = np.random.randn(args.regions_num, args.embedding_size).astype(np.float32)
-    print(
-        f"visual embedding file not found at {vis_path}; "
-        f"using random initialization with shape {vis_emb.shape}"
-    )
-    return vis_emb
+    return np.load(Path(data_path) / file_name, allow_pickle=True)
 
 
 def load_data():
     data_path = args.data_path
 
-    vis_emb = _load_or_init_vis_emb(data_path)
+    vis_emb = _load_npy(data_path, args.vis_embedding)
 
     mobility_adj = _load_npy(data_path, args.mobility_adj).squeeze()
     mobility = mobility_adj.copy()

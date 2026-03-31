@@ -29,6 +29,22 @@ def resolve_device():
 DEVICE = resolve_device()
 
 
+def print_visual_embedding_notice():
+    data_dir = Path(args.data_path)
+    vis_path = data_dir / args.vis_embedding
+    placeholder_path = data_dir / "VIS_EMBEDDING_PLACEHOLDER.txt"
+
+    if placeholder_path.exists():
+        print(
+            f"warning: {args.city} does not have a real vis_embedding yet; "
+            f"the current run will use the placeholder file at {vis_path}"
+        )
+    elif not vis_path.exists():
+        print(
+            f"warning: vis_embedding file is missing for {args.city}: {vis_path}"
+        )
+
+
 def prepare_training_inputs():
     vis_emb, poi_similarity, landuse_similarity, s_adj, d_adj, mobility = utils.load_data()
 
@@ -184,6 +200,7 @@ def main():
     print(f"task: {args.task}")
     print(f"data_path: {args.data_path}")
     print(f"save_folder: {args.save_folder}")
+    print_visual_embedding_notice()
 
     features, rel_emb, edge_index, mobility, poi_similarity, landuse_similarity = prepare_training_inputs()
     net = HRE(args.embedding_size, args.dropout, args.gcn_layers).to(DEVICE)
