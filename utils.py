@@ -14,7 +14,16 @@ def _load_npy(data_path, file_name):
 def load_data():
     data_path = args.data_path
 
-    vis_emb = _load_npy(data_path, args.vis_embedding)
+    vis_path = Path(data_path) / args.vis_embedding
+    if vis_path.exists():
+        vis_emb = np.load(vis_path, allow_pickle=True)
+    else:
+        rng = np.random.default_rng(args.seed)
+        vis_emb = rng.standard_normal((args.regions_num, args.embedding_size)).astype(np.float32)
+        print(
+            f"warning: {vis_path} not found, using seeded random initialization "
+            f"with shape {vis_emb.shape}."
+        )
 
     mobility_adj = _load_npy(data_path, args.mobility_adj).squeeze()
     mobility = mobility_adj.copy()
