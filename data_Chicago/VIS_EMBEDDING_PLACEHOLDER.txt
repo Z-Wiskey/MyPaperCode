@@ -1,2 +1,0 @@
-This vis_embedding.npy is a placeholder generated with a fixed random seed because HAFusion does not provide city-specific visual embeddings for this city.
-Replace it with the real visual embedding when available.
