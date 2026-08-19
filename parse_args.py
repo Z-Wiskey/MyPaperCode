@@ -35,6 +35,8 @@ def build_parser():
     # ---------------------------File--------------------------- #
     parser.add_argument("--vis_embedding", default="vis_embedding.npy")
     parser.add_argument("--mobility_adj", default="mob-adj.npy")
+    parser.add_argument("--source_adj", default="source_adj.npy")
+    parser.add_argument("--destination_adj", default="destination_adj.npy")
     parser.add_argument("--poi_similarity", default="poi_simi.npy")
     parser.add_argument("--landuse_similarity", default="landUse_simi.npy")
     parser.add_argument("--crime_counts", default="crime_counts.npy")

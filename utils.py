@@ -35,8 +35,10 @@ def load_data():
     landuse_similarity = _load_npy(data_path, args.landuse_similarity)
     landuse_similarity[np.isnan(landuse_similarity)] = 0
 
-    s_adj = mobility_adj.copy()
-    d_adj = mobility_adj.T.copy()
+    # s_adj = mobility_adj.copy()
+    # d_adj = mobility_adj.T.copy()
+    s_adj = _load_npy(data_path, args.source_adj)
+    d_adj = _load_npy(data_path, args.destination_adj)
 
     return vis_emb, poi_similarity, landuse_similarity, s_adj, d_adj, mobility
 
